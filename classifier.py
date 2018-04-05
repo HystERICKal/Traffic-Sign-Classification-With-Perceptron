@@ -3,17 +3,6 @@ import cv2
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
 
-def train(traindata,trainlabel,epochs=100):
-    w =  np.zeros(len(traindata[0]))
-    eta = 1
-    for epoch in range(0,epochs):
-        for x,y in zip(traindata,trainlabel):
-            r = x.dot(w) >= 0
-            hata = y-r
-            w+= eta * hata * x
-    return w
-def test(w,testdata):
-    return testdata.dot(w) >= 0 
 def getImageShape(img):
     
     # convert the resized image to grayscale, blur it slightly,
@@ -88,25 +77,40 @@ def getdata(path,isTest = 0):
     r,b = getExistingColors(img)
     dominantColor = 1 if(b==1) else 0;
     if (isTest):
-        return np.array([shape,dominantColor])
-    return np.array([[shape,dominantColor]])
-    
+        return np.array([shape,dominantColor,1])
+    return np.array([[shape,dominantColor,1]])
+
+def train(traindata,trainlabel,epochs=100):
+    w =  np.zeros(len(traindata[0]))
+    eta = 1
+    for epoch in range(0,epochs):
+        for x,y in zip(traindata,trainlabel):
+            print(x,y)
+            r = x.dot(w) >= 0
+            hata = y-r
+            w+= eta * hata * x
+    return w
+def test(w,testdata):
+    res = testdata.dot(w)
+    print("testdata\n",testdata,"\n w",w,"\nres",res)
+    return res >= 0    
 
 def oldmain():
     ## Create train data
     traindata = np.array([[0,0,1],[0,1,1],[1,0,1],[1,1,1]])
     trainlabel = np.array([0,0,0,1])
     ## Train 
-    w = train(traindata,trainlabel,100)
+    w = train(traindata,trainlabel,1)
+    print("w\n",w)
+    print("traindata\n",type(traindata))
+    print("trainlabel\n",type(trainlabel))
     ## Create test data
     testdata = np.array([1,0,1])
     ## Print test result
-    print("trdata\n",traindata)
-    print("trlabel",trainlabel)
     print ( test(w,testdata)    )
 
 def main():
-    traindata = np.empty((0,2), int)
+    traindata = np.empty((0,3), int)
     label =[]
     # Get parketme-durma datas ( parketme-durma label is 0)
     for i in range (1,13):
@@ -122,18 +126,22 @@ def main():
     # Lets Train it
     trainlabel = np.array(label)
 
-    w =  train(traindata,trainlabel,100)
-
-    ## Testing
-    path = "./trafikisaretleri/test/parketme-durma/20.png"
+    w =  train(traindata,trainlabel,1)
+    print("w\n",w)
     ## Create test data
-    testdata = getdata(path,1)
-    print("daire,mavi",testdata)
+    testdata = np.empty((0,3), int)
+    testlabel =[]
+    for i in range (14,20):
+        path = "./trafikisaretleri/test/parketme-durma/"+str(i)+".png"
+        d = getdata(path,1)
+        #testdata = np.append(testdata,d, axis=0)
+        print ( test(w,d)    )
+    for i in range (17,32):
+        path = "./trafikisaretleri/test/tehlike-uyari/"+str(i)+".png"
+        d = getdata(path,1)
+        #testdata = np.append(testdata,d, axis=0)
+        print ( test(w,d)    )
 
-    print("trdata\n",traindata)
-    print("trlabel",trainlabel)
-    ## Print test result
-    print ( test(w,np.array([1,1]))    )
 
 
 main()
