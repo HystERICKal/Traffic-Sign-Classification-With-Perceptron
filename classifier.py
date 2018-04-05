@@ -1,8 +1,17 @@
-import numpy as np
-import cv2
+# Name  : Halil İbrahim Bestil
+# ID    : 15011013
+# Bulunan karakteristik özellikler : 
+#   - Tabelada mavi renk bulunması
+#   - Tabela şekli (Üçgen,Daire)  
+
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import accuracy_score
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
+import numpy as np
+import cv2
 
+# Resimde bulunan shape'i tespit eder. Daire/Üçgen tipinde döndürür
 def getImageShape(img):
     
     # convert the resized image to grayscale, blur it slightly,
@@ -20,6 +29,7 @@ def getImageShape(img):
         return "notcircle"
     elif len(approx) >=4:
         return "circle"
+# Resim içerisinde mavi ve kırmızı renkleri var/yok biçiminde döndürür
 def getExistingColors(image):
     img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     img = img.reshape((img.shape[0] * img.shape[1],3)) #represent as row*column,channel number
@@ -28,6 +38,7 @@ def getExistingColors(image):
     hist = find_histogram(clt)
     r,b = getColorSimilarity(hist, clt.cluster_centers_)
     return r,b
+# Renk benzerliğini bulan fonksiyon
 def getColorSimilarity(hist, centroids):
     threshold = 124
     red = np.array([ 255,0,0])
@@ -51,11 +62,13 @@ def getColorSimilarity(hist, centroids):
             #print("CANNOT RESOLVE COLOR")
         
     return r,b    
+# iki rgb renk arasındaki euclidian farkını bulur
 def ColorDistance(rgb1,rgb2):
     # Distance between two rgb colors
     d = abs((float(rgb1[0])-float(rgb2[0]))**2 + (float(rgb1[1])-float(rgb2[1]))**2 +(float(rgb1[2])-float(rgb2[2])))**(1/float(2))
     #print("d" ,d)
     return d  
+# Resimdeki renklerin tespiti için ara fonksiyon
 def find_histogram(clt):
     """
     create a histogram with k clusters
@@ -67,8 +80,23 @@ def find_histogram(clt):
     hist /= hist.sum()
 
     return hist 
+# Test fonksiyonu
+def test(w,testdata):
+    t = np.array(testdata)
+    return t.dot(w) >= 0    
+# Perceptron algoritması
+def perceptron(X, Y,epochs):
+    w = np.zeros(len(X[0]))
+    eta = 1
 
-def getdata(path,isTest = 0):
+    for t in range(epochs):
+        for i, x in enumerate(X):
+            if (np.dot(X[i], w)*Y[i]) <= 0:
+                w = w + eta*X[i]*Y[i]
+
+    return w
+# Dosyadan resmi okur ve preprocess aşamalarını yapar
+def getdata(path):
     # Read image
     img = cv2.imread(path)
     # Detect shape
@@ -76,72 +104,91 @@ def getdata(path,isTest = 0):
     # Detect colors (dominantcolor = 1 eğer resimde mavi renk varsa)
     r,b = getExistingColors(img)
     dominantColor = 1 if(b==1) else 0;
-    if (isTest):
-        return np.array([shape,dominantColor,1])
-    return np.array([[shape,dominantColor,1]])
-
-def train(traindata,trainlabel,epochs=100):
-    w =  np.zeros(len(traindata[0]))
-    eta = 1
-    for epoch in range(0,epochs):
-        for x,y in zip(traindata,trainlabel):
-            print(x,y)
-            r = x.dot(w) >= 0
-            hata = y-r
-            w+= eta * hata * x
-    return w
-def test(w,testdata):
-    res = testdata.dot(w)
-    print("testdata\n",testdata,"\n w",w,"\nres",res)
-    return res >= 0    
-
-def oldmain():
-    ## Create train data
-    traindata = np.array([[0,0,1],[0,1,1],[1,0,1],[1,1,1]])
-    trainlabel = np.array([0,0,0,1])
-    ## Train 
-    w = train(traindata,trainlabel,1)
-    print("w\n",w)
-    print("traindata\n",type(traindata))
-    print("trainlabel\n",type(trainlabel))
-    ## Create test data
-    testdata = np.array([1,0,1])
-    ## Print test result
-    print ( test(w,testdata)    )
-
+    return [shape,dominantColor,-1]
+# Epoch değeri 50 için confusion matrixini yazdırır
 def main():
-    traindata = np.empty((0,3), int)
-    label =[]
-    # Get parketme-durma datas ( parketme-durma label is 0)
+    trdata = []
+    trlabel = []
+
+    ## Get signs for training dataset
+    for i in range (1,13):
+        path = "./trafikisaretleri/egitim/tehlike-uyari/"+str(i)+".png"
+        trdata.append(getdata(path))
+        trlabel.append(1)
     for i in range (1,13):
         path = "./trafikisaretleri/egitim/parketme-durma/"+str(i)+".png"
-        traindata = np.append(traindata,getdata(path), axis=0)
-        label.append(0)
-    # Get tehlike uyari datas ( tehlike-uyari label is 1)
-    for i in range (1,16):
-        path = "./trafikisaretleri/egitim/tehlike-uyari/"+str(i)+".png"
-        traindata = np.append(traindata,getdata(path), axis=0)
-        label.append(1)
+        trdata.append(getdata(path))
+        trlabel.append(-1)
 
-    # Lets Train it
-    trainlabel = np.array(label)
+    ## Train the perceptron
+    X = np.array(trdata)
+    w = perceptron(X,trlabel,50)
+    print(w)
 
-    w =  train(traindata,trainlabel,1)
-    print("w\n",w)
-    ## Create test data
-    testdata = np.empty((0,3), int)
-    testlabel =[]
-    for i in range (14,20):
-        path = "./trafikisaretleri/test/parketme-durma/"+str(i)+".png"
-        d = getdata(path,1)
-        #testdata = np.append(testdata,d, axis=0)
-        print ( test(w,d)    )
+    y_true = []
+    y_pred = []
+    ## Get signs for test dataset
     for i in range (17,32):
         path = "./trafikisaretleri/test/tehlike-uyari/"+str(i)+".png"
-        d = getdata(path,1)
-        #testdata = np.append(testdata,d, axis=0)
-        print ( test(w,d)    )
+        y_true.append(True);
+        y_pred.append(test(w,getdata(path)))
+    for i in range (14,20):
+        path = "./trafikisaretleri/test/parketme-durma/"+str(i)+".png"
+        y_true.append(False);
+        y_pred.append(test(w,getdata(path)))
+
+    ## Print Confusion Matrix
+    print("epoch değeri 50 olduğu durum için başarı matrisi:")
+    print("(t-u :tehlike-uyari , p-d: parketme-durma )")
+    x,y = confusion_matrix(y_true, y_pred,labels=[True,False])
+    print("     Tahmin \ Gerçek  |  t-u  |  p-d")
+    print("     t-u              |  ",x[0]," |  ",x[1])
+    print("     p-d              |  ",y[0],"  |  ",y[1])
+# Ödevde istenen 1den 50 ye kadar olan eğitim sonuçlarını yazdırır
+def getPredictionForEpochValue():
+    trdata = []
+    trlabel = []
+
+    ## Get signs for training dataset
+    for i in range (1,13):
+        path = "./trafikisaretleri/egitim/tehlike-uyari/"+str(i)+".png"
+        trdata.append(getdata(path))
+        trlabel.append(1)
+    for i in range (1,13):
+        path = "./trafikisaretleri/egitim/parketme-durma/"+str(i)+".png"
+        trdata.append(getdata(path))
+        trlabel.append(-1)
+
+    ## Train the perceptron
+    X = np.array(trdata)
+
+    epoch =[]
+    result =[]
+    for i in range(1,50):
+        print(i," epoch için değerlendirme yapılıyor")
+        epoch.append(i)
+        w = perceptron(X,trlabel,i)
+        y_true = []
+        y_pred = []
+        ## Get signs for test dataset
+        for i in range (17,32):
+            path = "./trafikisaretleri/test/tehlike-uyari/"+str(i)+".png"
+            y_true.append(True);
+            y_pred.append(test(w,getdata(path)))
+        for i in range (14,20):
+            path = "./trafikisaretleri/test/parketme-durma/"+str(i)+".png"
+            y_true.append(False);
+            y_pred.append(test(w,getdata(path)))
+       
+        result.append( accuracy_score(y_true, y_pred))
+
+    plt.plot(epoch, result)
+    plt.xlabel('epoch')
+    plt.ylabel('accuracy')
+    plt.title('1 - 50 arası eğitim sonuçları')
+    plt.show()
 
 
 
-main()
+main()  
+getPredictionForEpochValue()
