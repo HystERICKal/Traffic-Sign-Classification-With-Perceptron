@@ -1,5 +1,7 @@
 # Name  : Halil İbrahim Bestil
 # ID    : 15011013
+# How to run?
+#       - python3 halil_ibrahim_bestil.py
 # Bulunan karakteristik özellikler : 
 #   - Tabelada mavi renk bulunması
 #   - Tabela şekli (Üçgen,Daire)  
